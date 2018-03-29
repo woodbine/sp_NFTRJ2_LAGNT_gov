@@ -51,7 +51,7 @@ def validateURL(url):
         else:
             ext = os.path.splitext(url)[1]
         validURL = r.getcode() == 200
-        validFiletype = ext.lower() in ['.csv', '.xls', '.xlsx']
+        validFiletype = ext.lower() in ['.csv', '.xls', '.xlsx', '.pdf']
         return validURL, validFiletype
     except:
         print ("Error validating URL.")
@@ -85,33 +85,49 @@ def convert_mth_strings ( mth_string ):
 
 #### VARIABLES 1.0
 
-entity_id = "FTTAJX_BCPNFT_gov"
-url = "https://data.gov.uk/dataset/financial-transactions-data-smhft"
+entity_id = "CCG07Y_HARCHNT_gov"
+url = "http://www.hrch.nhs.uk/about-us/publications-declarations/"
 errors = 0
 data = []
 
 
 #### READ HTML 1.0
-import requests
-html = requests.get(url)
-soup = BeautifulSoup(html.text, "lxml")
+
+html = urllib2.urlopen(url)
+soup = BeautifulSoup(html, "lxml")
 
 
 #### SCRAPE DATA
 
-blocks = soup.find_all('div', 'dataset-resource')
-for block in blocks:
-    title = block.find('span', 'inner-cell').text.strip().split()
-    url = block.find_all('a')[1]['href']
-    csvMth = title[1][:3]
-    csvYr = title[2]
-    if '25' in csvYr:
-        csvYr = '20'+url.split('/')[-1].split('.')[0][-2:]
-        csvMth = url.split('/')[-1][:3]
-    if 'Apr' in csvMth and '2017' in csvYr:
-        url = block.find_all('a')[2]['href']
-    csvMth = convert_mth_strings(csvMth.upper())
-    data.append([csvYr, csvMth, url])
+title_divs = soup.find_all('div', id='panelGroupBody_28237')
+for title_div in title_divs:
+    blocks = title_div.find_all('a', 'link-asset ')+title_div.find_all('a', 'oLinkAsset ')+title_div.find_all('a', 'oLinkAssetXls ')
+    for block in blocks:
+        link = 'http://www.hrch.nhs.uk'+block['href']
+        title = block.text.strip()
+        if 'month' in title:
+            if '1-11' in title:
+                csvMth = 'Q0'
+                csvYr = title.split('/')[0][-4:]
+            if '9-12' in title:
+                csvMth = 'Q0'
+                csvYr = title.split('/')[0][-4:]
+            if '1-3' in title:
+                csvMth = 'Q1'
+                csvYr = title.split('/')[0][-4:]
+            if '4-8' in title:
+                csvMth = 'Q0'
+                csvYr = title.split('/')[0][-4:]
+            if ' all ' in title:
+                csvYr = 'Y1'
+                csvYr = title.split('/')[0][-4:]
+            csvMth = convert_mth_strings(csvMth.upper())
+            data.append([csvYr, csvMth, link])
+        else:
+            csvMth = title[:3]
+            csvYr = title[-4:]
+            csvMth = convert_mth_strings(csvMth.upper())
+            data.append([csvYr, csvMth, link])
 
 #### STORE DATA 1.0
 
